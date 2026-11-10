@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EasyAI Model Gateway | 本地模型路由</title>
+  <script>
+    try {
+      if (localStorage.getItem('gateway-theme') === 'light') document.documentElement.dataset.theme = 'light';
+    } catch (error) {
+      console.warn('Could not load saved theme preference:', error);
+    }
+  </script>
+  <link rel="stylesheet" href="/assets/dashboard.css">
+</head>
+<body>
+  <header>
+    <div class="wrap top">
+      <div>
+        <h1>EasyAI 本地模型路由</h1>
+        <p class="sub">在自己的电脑管理模型服务，并接入常用客户端</p>
+      </div>
+      <div class="header-tools">
+        <button id="home-button" type="button" hidden>返回服务选择</button>
+        <button id="theme-toggle" class="icon-button" type="button" aria-label="切换到亮色主题" title="切换到亮色主题">
+          <span id="theme-icon" aria-hidden="true">☀</span>
+        </button>
+        <div id="catalog-status" class="muted" role="status">尚未加载目录</div>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section id="home-view" aria-labelledby="home-title">
+      <div class="home-hero">
+        <p class="home-eyebrow">YOUR LOCAL MODEL HUB</p>
+        <h2 id="home-title">从选择模型服务开始</h2>
+        <p>可以直接体验 Kilo 提供的免 Key 模型，也可以接入你自己申请了 API Key 的模型服务。服务在本机运行，你决定使用哪家服务以及把请求发送到哪里。</p>
+      </div>
+      <div class="entry-grid">
+        <article class="entry-card featured">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">K</div>
+            <span class="entry-badge">无需单独申请 Key</span>
+          </div>
+          <h3>Kilo 免费模型</h3>
+          <p>快速查看当前 Kilo 模型目录，选择模型并手动测试，再配置到你的客户端。</p>
+          <ul>
+            <li>开箱即用，适合先体验</li>
+            <li>免费额度和可用性由上游决定</li>
+          </ul>
+          <button id="open-kilo" class="primary" type="button">浏览 Kilo 模型</button>
+        </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">SN</div>
+            <span class="entry-badge key-required">需要服务商 API Key</span>
+          </div>
+          <h3>SenseNova（商汤日日新）</h3>
+          <p>使用自己的 SenseNova 账号和 API Key，在本机加密管理凭据并测试模型。</p>
+          <ul>
+            <li>适合已有 SenseNova 账号的用户</li>
+            <li>模型请求会发送给 SenseNova</li>
+          </ul>
+          <button id="open-sensenova" type="button">接入 SenseNova</button>
+        </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">IL</div>
+            <span class="entry-badge key-required">需要服务商 API Key</span>
+          </div>
+          <h3>InternLM（书生·端砚）</h3>
+          <p>使用自己的 InternLM 账号和 API Key，在本机加密管理凭据并测试模型。</p>
+          <ul>
+            <li>适合已有 InternLM 账号的用户</li>
+            <li>模型请求会发送给 InternLM</li>
+          </ul>
+          <button id="open-internlm" type="button">接入 InternLM</button>
+        </article>
+        <article class="entry-card">
+          <div class="entry-card-top">
+            <div class="entry-mark" aria-hidden="true">SC</div>
+            <span class="entry-badge key-required">需要服务商 API Key</span>
+          </div>
+          <h3>超算互联网（SCNet）</h3>
+          <p>使用 SCNet 模型 API Key，在本机加密管理凭据并读取可用模型。</p>
+          <ul>
+            <li>支持 OpenAI 与 Anthropic 兼容接口</li>
+            <li>Key 的模型范围由 SCNet 控制台配置</li>
+          </ul>
+          <button id="open-scnet" type="button">接入 SCNet</button>
+        </article>
+      </div>
+      <div class="home-provider-management">
+        <button id="open-providers" type="button">管理所有服务商与本机凭据</button>
+      </div>
+      <p class="home-footnote">提示：本机运行有助于让凭据留在你的设备上，但设备安全、操作系统账户和本地恶意软件仍会影响密钥安全。每次请求都会发往你选择的上游服务商。</p>
+    </section>
+
+    <section id="kilo-view" aria-label="Kilo 免费模型" hidden>
+    <div class="notice">
+      ⚠️ 本网关不会在本机运行 AI 模型。测试时你输入的提示词会发送给对应的第三方模型服务商；是否免费、可用及隐私规则由服务商决定。列表能看到模型，不代表模型一定可以正常调用。
+    </div>
+
+    <details id="connection-settings" class="connection-settings">
+      <summary>连接设置（本地访问口令）</summary>
+      <div class="bar">
+        <input id="local-key" type="password" autocomplete="off" placeholder="仅设置 LOCAL_KEY 时填写" aria-label="本地访问口令">
+        <button id="save-key" type="button">保存并连接</button>
+        <span id="local-key-status" class="connection-settings-status" role="status" aria-live="polite"></span>
+      </div>
+    </details>
+    <div class="bar">
+      <input id="search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索模型">
+      <label class="muted"><input id="free-only" type="checkbox"> 仅显示上游标记免费的模型</label>
+      <button id="refresh">刷新目录</button>
+    </div>
+
+    <div class="settings selection-toolbar">
+      <span id="selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+      <div class="selection-actions">
+        <button id="select-visible-button" type="button">全选当前结果</button>
+        <button id="selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+        <button id="top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+        <button id="top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+        <button id="clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+      </div>
+    </div>
+    <section id="catalog" class="catalog" role="group" aria-label="模型列表，可多选测试">
+      <div class="empty">正在读取上游模型目录……</div>
+    </section>
+
+    <details class="panel" style="margin-top: 16px;">
+      <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+      <div class="test-grid">
+        <textarea id="test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+        <button id="test-button" class="primary" disabled>发送一次测试请求</button>
+      </div>
+      <div id="test-result" class="result hidden" role="status"></div>
+      <footer>所有批量测试，都会使用上面文本框里的内容作为测试提问，可以自行修改。提示词会发送给对应上游并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+    </details>
+    </section>
+
+    <section id="vault-view" aria-labelledby="vault-page-title" hidden>
+      <div class="provider-heading">
+        <div>
+          <h2 id="vault-page-title">服务商凭据管理</h2>
+          <p>在这里创建或解锁本机凭据库，并管理 SenseNova、InternLM 与 SCNet 的 API Key。</p>
+        </div>
+      </div>
+      <section class="flow-panel" aria-labelledby="vault-title">
+        <h3 id="vault-title">本机加密凭据库</h3>
+        <p class="flow-intro">服务商 Key 将在本机加密保存。首次设置主密码后，请妥善保管：忘记主密码无法恢复凭据。主密码不会保存在浏览器或凭据文件中。</p>
+        <div id="vault-locked">
+          <label class="vault-field" for="vault-password">
+            <span id="vault-password-label">主密码</span>
+            <input id="vault-password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" placeholder="首次设置至少 12 个字符">
+          </label>
+          <div class="vault-actions">
+            <button id="vault-unlock-button" class="primary" type="button">创建并解锁凭据库</button>
+            <span id="vault-lock-state" class="vault-state" role="status" aria-live="polite">正在检查本机凭据库…</span>
+          </div>
+        </div>
+        <div id="vault-unlocked" hidden>
+          <p class="vault-state">凭据库已解锁。Key 仅显示配置状态，不会从服务端回传。</p>
+          <label class="vault-field" for="sensenova-api-key">
+            <span>SenseNova API Key</span>
+            <input id="sensenova-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换服务商 Key">
+          </label>
+          <label class="vault-field" for="internlm-api-key">
+            <span>InternLM API Key</span>
+            <input id="internlm-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换服务商 Key">
+          </label>
+          <label class="vault-field" for="scnet-api-key">
+            <span>SCNet 模型 API Key</span>
+            <input id="scnet-api-key" type="password" autocomplete="off" spellcheck="false" placeholder="输入或替换 SCNet 模型 API Key">
+          </label>
+          <div class="vault-actions">
+            <button id="save-sensenova-key" class="primary" type="button">加密保存 SenseNova Key</button>
+            <button id="delete-sensenova-key" type="button">删除已保存 SenseNova Key</button>
+            <button id="save-internlm-key" class="primary" type="button">加密保存 InternLM Key</button>
+            <button id="delete-internlm-key" type="button">删除已保存 InternLM Key</button>
+            <button id="save-scnet-key" class="primary" type="button">加密保存 SCNet Key</button>
+            <button id="delete-scnet-key" type="button">删除已保存 SCNet Key</button>
+            <button id="vault-lock-button" type="button">锁定凭据库</button>
+            <span id="vault-key-status" class="vault-state" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </section>
+      <nav class="provider-page-nav" aria-label="服务商页面">
+        <span class="muted">前往服务商页面：</span>
+        <button id="vault-open-sensenova" type="button">SenseNova</button>
+        <button id="vault-open-internlm" type="button">InternLM</button>
+        <button id="vault-open-scnet" type="button">SCNet</button>
+      </nav>
+    </section>
+
+      <section id="sensenova-view" aria-labelledby="sensenova-page-title" hidden>
+        <div class="provider-page-heading">
+          <div class="provider-heading">
+            <div>
+              <h2 id="sensenova-page-title">SenseNova（商汤日日新）</h2>
+              <p>独立的 SenseNova 凭据、模型目录与连接测试页面。</p>
+            </div>
+          </div>
+          <button class="manage-provider-credentials" type="button" data-open-vault>管理本机凭据</button>
+        </div>
+        <!-- SenseNova 接入向导 -->
+        <section id="sensenova-flow" class="flow-panel" aria-labelledby="sensenova-flow-title">
+          <div class="provider-heading">
+            <h3 id="sensenova-flow-title">SenseNova（商汤日日新）</h3>
+            <p>首个接入验证目标 · OpenAI 兼容 API<br>API 地址：<code>https://token.sensenova.cn/v1</code></p>
+            <span id="sensenova-provider-state" class="provider-state">检查凭据状态中…</span>
+          </div>
+          <p class="flow-intro">先获取服务商 Key，再存入本机加密凭据库。模型连接验证与目录接入将在凭据保存后续接。</p>
+          <ol class="flow-steps" aria-label="SenseNova 接入步骤">
+            <li class="flow-step" data-flow-step="1" aria-current="step"><span class="flow-step-number">第 1 步</span>获取服务商 Key</li>
+            <li class="flow-step" data-flow-step="2"><span class="flow-step-number">第 2 步</span>在本机管理凭据</li>
+            <li class="flow-step" data-flow-step="3"><span class="flow-step-number">第 3 步</span>验证并选择模型</li>
+          </ol>
+          <div id="sensenova-flow-content" class="flow-content" aria-live="polite">
+            <h4>先从 SenseNova 获取 API Key</h4>
+            <p>登录你自己的 SenseNova 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p>
+            <p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p>
+            <p><a href="https://www.sensenova.cn/token-plan" target="_blank" rel="noreferrer">前往 SenseNova 官网申请 API Key</a></p>
+          </div>
+          <div class="prototype-notice">主密码不会写入磁盘。忘记主密码后无法恢复已保存的 Key；本机账户或恶意软件仍可能影响运行中服务的安全。</div>
+          <div class="flow-actions">
+            <button id="sensenova-flow-back" type="button" hidden>上一步</button>
+            <button id="sensenova-flow-next" class="primary" type="button">下一步</button>
+            <button id="sensenova-flow-close" type="button">关闭向导</button>
+          </div>
+          <div id="sensenova-provider-status" class="provider-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <!-- SenseNova 模型目录与测试区域 -->
+        <section id="sensenova-catalog-section" class="flow-panel" aria-labelledby="sensenova-catalog-title" hidden>
+          <div class="provider-heading">
+            <h3 id="sensenova-catalog-title">SenseNova 模型目录</h3>
+            <p>凭据库解锁且已配置 Key 后，可加载模型目录并测试连接。</p>
+          </div>
+          <div class="bar">
+            <button id="load-sensenova-catalog" class="primary" type="button">加载 SenseNova 模型目录</button>
+            <span id="sensenova-catalog-status" class="muted" role="status"></span>
+          </div>
+          <div class="bar">
+            <input id="sensenova-search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索 SenseNova 模型">
+          </div>
+          <div class="settings selection-toolbar">
+            <span id="sensenova-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+            <div class="selection-actions">
+              <button id="sensenova-select-visible-button" type="button">全选当前结果</button>
+              <button id="sensenova-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+              <button id="sensenova-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+              <button id="sensenova-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+              <button id="sensenova-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+            </div>
+          </div>
+          <section id="sensenova-catalog" class="catalog" role="group" aria-label="SenseNova 模型列表，可多选测试">
+            <div class="empty">点击上方按钮加载 SenseNova 模型目录</div>
+          </section>
+
+          <details class="panel" style="margin-top: 16px;">
+            <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+            <div class="test-grid">
+              <textarea id="sensenova-test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+              <button id="sensenova-test-button" class="primary" disabled>发送一次测试请求</button>
+            </div>
+            <div id="sensenova-test-result" class="result hidden" role="status"></div>
+            <footer>测试提示词会发送给 SenseNova 并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+          </details>
+        </section>
+      </section>
+
+      <section id="internlm-view" aria-labelledby="internlm-page-title" hidden>
+        <div class="provider-page-heading">
+          <div class="provider-heading">
+            <div>
+              <h2 id="internlm-page-title">InternLM（书生·端砚）</h2>
+              <p>独立的 InternLM 凭据、模型目录与连接测试页面。</p>
+            </div>
+          </div>
+          <button class="manage-provider-credentials" type="button" data-open-vault>管理本机凭据</button>
+        </div>
+        <!-- InternLM 接入向导 -->
+        <section id="internlm-flow" class="flow-panel" aria-labelledby="internlm-flow-title">
+          <div class="provider-heading">
+            <h3 id="internlm-flow-title">InternLM (书生·端砚)</h3>
+            <p>上海 AI 实验室训练 · OpenAI 兼容 API<br>API 地址：<code>https://discovery-api.intern-ai.org.cn/v1</code></p>
+            <span id="internlm-provider-state" class="provider-state">检查凭据状态中…</span>
+          </div>
+          <p class="flow-intro">先获取服务商 Key，再存入本机加密凭据库。模型连接验证与目录接入将在凭据保存后续接。</p>
+          <ol class="flow-steps" aria-label="InternLM 接入步骤">
+            <li class="flow-step" data-internlm-flow-step="1" aria-current="step"><span class="flow-step-number">第 1 步</span>获取服务商 Key</li>
+            <li class="flow-step" data-internlm-flow-step="2"><span class="flow-step-number">第 2 步</span>在本机管理凭据</li>
+            <li class="flow-step" data-internlm-flow-step="3"><span class="flow-step-number">第 3 步</span>验证并选择模型</li>
+          </ol>
+          <div id="internlm-flow-content" class="flow-content" aria-live="polite">
+            <h4>先从 InternLM 获取 API Key</h4>
+            <p>登录你自己的 InternLM 账号，在服务商控制台申请 API Key，并确认账号权限、计费或免费额度说明。</p>
+            <p>获取 Key 后先保存在安全位置。不要把它发给他人，也不要粘贴到聊天或截图里。</p>
+            <p><a href="https://discovery.intern-ai.org.cn/token-plan/" target="_blank" rel="noreferrer">前往 InternLM 官网申请 API Key</a></p>
+          </div>
+          <div class="prototype-notice">主密码不会写入磁盘。忘记主密码后无法恢复已保存的 Key；本机账户或恶意软件仍可能影响运行中服务的安全。</div>
+          <div class="flow-actions">
+            <button id="internlm-flow-back" type="button" hidden>上一步</button>
+            <button id="internlm-flow-next" class="primary" type="button">下一步</button>
+            <button id="internlm-flow-close" type="button">关闭向导</button>
+          </div>
+          <div id="internlm-provider-status" class="provider-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <!-- InternLM (书生·端砚) 模型目录与测试区域 -->
+        <section id="internlm-catalog-section" class="flow-panel" aria-labelledby="internlm-catalog-title" hidden>
+          <div class="provider-heading">
+            <h3 id="internlm-catalog-title">InternLM (书生·端砚) 模型目录</h3>
+            <p>凭据库解锁且已配置 Key 后，可加载模型目录并测试连接。</p>
+          </div>
+          <div class="bar">
+            <button id="load-internlm-catalog" class="primary" type="button">加载 InternLM 模型目录</button>
+            <span id="internlm-catalog-status" class="muted" role="status"></span>
+          </div>
+          <div class="bar">
+            <input id="internlm-search" type="search" placeholder="搜索模型或能力标签" aria-label="搜索 InternLM 模型">
+          </div>
+          <div class="settings selection-toolbar">
+            <span id="internlm-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+            <div class="selection-actions">
+              <button id="internlm-select-visible-button" type="button">全选当前结果</button>
+              <button id="internlm-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+              <button id="internlm-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+              <button id="internlm-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+              <button id="internlm-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+            </div>
+          </div>
+          <section id="internlm-catalog" class="catalog" role="group" aria-label="InternLM 模型列表，可多选测试">
+            <div class="empty">点击上方按钮加载 InternLM 模型目录</div>
+          </section>
+
+          <details class="panel" style="margin-top: 16px;">
+            <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+            <div class="test-grid">
+              <textarea id="internlm-test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+              <button id="internlm-test-button" class="primary" disabled>发送一次测试请求</button>
+            </div>
+            <div id="internlm-test-result" class="result hidden" role="status"></div>
+            <footer>测试提示词会发送给 InternLM 并可能消耗额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+          </details>
+        </section>
+      </section>
+
+      <section id="scnet-view" aria-labelledby="scnet-page-title" hidden>
+        <div class="provider-page-heading">
+          <div class="provider-heading">
+            <div>
+              <h2 id="scnet-page-title">超算互联网（SCNet）</h2>
+              <p>独立的 SCNet 凭据、模型目录与 OpenAI / Anthropic 兼容连接测试页面。</p>
+            </div>
+          </div>
+          <button class="manage-provider-credentials" type="button" data-open-vault>管理本机凭据</button>
+        </div>
+        <section id="scnet-flow" class="flow-panel" aria-labelledby="scnet-flow-title">
+          <div class="provider-heading">
+            <h3 id="scnet-flow-title">SCNet 模型 API</h3>
+            <p>OpenAI 兼容：<code>https://api.scnet.cn/api/llm/v1</code><br>Anthropic 兼容：<code>https://api.scnet.cn/api/llm/anthropic</code></p>
+            <span id="scnet-provider-state" class="provider-state">检查凭据状态中…</span>
+          </div>
+          <p class="flow-intro">在 SCNet 控制台创建模型 API Key，并按需设置可访问的模型范围。Key 将加密保存在本机凭据库中；模型列表会按此 Key 的权限返回。</p>
+          <div class="flow-content">
+            <p><a href="https://www.scnet.cn/ui/console/index.html#/llm/apikeys" target="_blank" rel="noopener noreferrer">打开 SCNet 模型 API Key 管理</a></p>
+            <p>保存 Key 后，可在下方加载模型并进行连接测试。目录中的模型 ID 会加上 <code>scnet/</code> 前缀，用于本地网关区分上游；配置客户端时请使用完整 ID。</p>
+            <p>Token Plan 专属 Key 有独立的使用范围限制，请按 SCNet 官方规则使用。</p>
+          </div>
+          <div class="prototype-notice">测试提示词会发送到 SCNet，可能消耗费用或套餐额度。模型权限、计费和可用性以 SCNet 控制台及官方说明为准。</div>
+        </section>
+        <section id="scnet-catalog-section" class="flow-panel" aria-labelledby="scnet-catalog-title" hidden>
+          <div class="provider-heading">
+            <h3 id="scnet-catalog-title">SCNet 模型目录</h3>
+            <p>从 SCNet 模型列表接口读取当前 API Key 可访问的模型。</p>
+          </div>
+          <div class="bar">
+            <button id="load-scnet-catalog" class="primary" type="button">加载 SCNet 模型目录</button>
+            <span id="scnet-catalog-status" class="muted" role="status"></span>
+          </div>
+          <div class="bar">
+            <input id="scnet-search" type="search" placeholder="搜索模型或提供方" aria-label="搜索 SCNet 模型">
+          </div>
+          <div class="settings selection-toolbar">
+            <span id="scnet-selection-status" class="muted">点击卡片选中；按住鼠标左键拖框，Shift 点击可范围多选。</span>
+            <div class="selection-actions">
+              <button id="scnet-select-visible-button" type="button">全选当前结果</button>
+              <button id="scnet-selected-only-button" type="button" aria-pressed="false">仅看已选</button>
+              <button id="scnet-top-test-button" class="primary" aria-label="测试已选模型" disabled>测试</button>
+              <button id="scnet-top-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+              <button id="scnet-clear-selection" aria-label="清空测试选择" disabled>清空选择</button>
+            </div>
+          </div>
+          <section id="scnet-catalog" class="catalog" role="group" aria-label="SCNet 模型列表，可多选测试">
+            <div class="empty">点击上方按钮加载 SCNet 模型目录</div>
+          </section>
+          <details class="panel" style="margin-top: 16px;">
+            <summary class="section-title" style="cursor: pointer; user-select: none;">问答测试（批量测试将使用此提示词）</summary>
+            <div class="test-grid">
+              <textarea id="scnet-test-prompt" maxlength="2000" aria-label="测试提示词" placeholder="请输入任意测试提示词"></textarea>
+              <button id="scnet-test-button" class="primary" disabled>发送一次测试请求</button>
+            </div>
+            <div id="scnet-test-result" class="result hidden" role="status"></div>
+            <footer>测试提示词会发送给 SCNet 并可能消耗费用或额度；响应仅显示在本地页面，网关日志不记录提示词或响应内容。</footer>
+          </details>
+        </section>
+      </section>
+  </main>
+  <dialog id="setup-dialog" class="setup-dialog" aria-labelledby="setup-title">
+    <div class="setup-dialog-header">
+      <div class="setup-brand">
+        <div class="setup-brand-mark" aria-hidden="true">AI</div>
+        <div>
+          <h2 id="setup-title">配置模型接入</h2>
+          <p id="setup-model-label"></p>
+        </div>
+      </div>
+      <button id="close-setup" class="setup-close" type="button" aria-label="关闭接入配置">×</button>
+    </div>
+    <div class="setup-layout">
+      <aside class="setup-sidebar" aria-label="选择客户端">
+        <div class="setup-sidebar-heading">选择客户端 <span class="setup-count">18 种</span></div>
+        <input id="setup-client-search" class="setup-search" type="search" placeholder="搜索客户端…" aria-label="搜索客户端">
+        <nav id="setup-client-list" class="setup-client-list" aria-label="客户端列表"></nav>
+        <select id="setup-client" class="visually-hidden" tabindex="-1" aria-hidden="true">
+          <option value="claude-code">Claude Code（Anthropic Messages）</option>
+          <option value="cline">Cline（OpenAI 兼容表单）</option>
+          <option value="continue-json">Continue（config.json）</option>
+          <option value="chatbox">Chatbox（自定义供应商）</option>
+          <option value="cherry-studio">Cherry Studio（自定义供应商）</option>
+          <option value="workbuddy">WorkBuddy（自定义模型）</option>
+          <option value="trae">Trae（自定义模型）</option>
+          <option value="deepseek-harness">DeepSeek Harness</option>
+          <option value="cc-switch-claude">CC-Switch（Claude Code）</option>
+          <option value="opencode">OpenCode</option>
+          <option value="workswarm">WorkSwarm</option>
+          <option value="loomy">Loomy</option>
+          <option value="hermes-agent">Hermes Agent</option>
+          <option value="openfic">OpenFIC</option>
+          <option value="github-copilot-byok">GitHub Copilot（自带密钥）</option>
+          <option value="vscode-copilot-chat">VS Code GitHub Copilot Chat</option>
+          <option value="qclaw">QClaw</option>
+          <option value="cc-switch-codex">CC-Switch（Codex）</option>
+          <option value="openai-compatible">其他 OpenAI 兼容客户端</option>
+        </select>
+      </aside>
+      <main class="setup-content">
+        <div id="setup-content-scroll" class="setup-content-scroll">
+          <div class="setup-step-row" aria-label="配置步骤">
+            <span class="setup-step"><span class="setup-step-number">1</span>选择客户端</span>
+            <span class="setup-step-line"></span>
+            <span class="setup-step"><span class="setup-step-number">2</span>填写连接</span>
+            <span class="setup-step-line"></span>
+            <span class="setup-step"><span class="setup-step-number">3</span>复制并应用</span>
+          </div>
+          <div class="setup-client-heading">
+            <div>
+              <h3 id="setup-client-title">Claude Code</h3>
+              <p id="setup-client-description"></p>
+            </div>
+            <span id="setup-protocol-badge" class="setup-protocol-badge"></span>
+          </div>
+          <section class="setup-section">
+            <h4 class="setup-section-title"><span class="setup-section-index">1</span>连接信息</h4>
+            <div class="setup-fields">
+              <div class="setup-field full">
+                <label for="setup-base-url">接口地址（Base URL）</label>
+                <input id="setup-base-url" type="text" readonly spellcheck="false">
+                <p class="setup-help">根据所选客户端的接口协议自动生成</p>
+              </div>
+              <div class="setup-field full">
+                <label for="setup-model-id">模型名称（Model ID）</label>
+                <input id="setup-model-id" type="text" readonly>
+                <p class="setup-help">已从当前模型卡片带入</p>
+              </div>
+              <div class="setup-field full">
+                <label for="setup-api-key">API Key / 本地访问口令</label>
+                <input id="setup-api-key" type="password" autocomplete="off" spellcheck="false">
+                <p class="setup-help">若未设置 LOCAL_KEY 可使用 dummy；预览默认隐藏真实口令。</p>
+              </div>
+            </div>
+          </section>
+          <div id="setup-instructions" class="setup-note" role="status"></div>
+          <a class="setup-guide-link" href="/docs/client-guides/third-party-api-setup.html" target="_blank" rel="noopener noreferrer">
+            查看 18 款客户端完整图文教程 <span aria-hidden="true">↗</span>
+          </a>
+          <div id="workbuddy-skill-tools" class="setup-note setup-skill-tools hidden">
+            <strong>让 WorkBuddy 帮你配置</strong>
+            <p>复制指令后，直接粘贴到 WorkBuddy 对话框；或者下载 ZIP，再上传到 WorkBuddy 的 Skill 入口。</p>
+            <div class="setup-skill-actions">
+              <button id="copy-workbuddy-skill" type="button">复制给 WorkBuddy</button>
+              <button id="download-workbuddy-skill" type="button">下载 Skill ZIP</button>
+            </div>
+            <span id="workbuddy-skill-status" class="setup-status" role="status" aria-live="polite"></span>
+          </div>
+          <details class="setup-preview">
+            <summary><span>配置预览</span><span>复制前可检查配置内容</span></summary>
+            <div class="setup-preview-content">
+              <textarea id="setup-preview" readonly spellcheck="false" aria-label="配置预览"></textarea>
+            </div>
+          </details>
+        </div>
+        <div class="setup-footer">
+          <div class="setup-footer-copy">
+            <strong>安全提醒</strong>
+            配置留在本机；复制操作可能包含口令，请勿分享。请求会发送至模型上游服务商。
+          </div>
+          <div class="setup-footer-actions">
+            <span id="setup-status" class="setup-status" role="status" aria-live="polite"></span>
+            <button id="setup-copy" class="primary" type="button">复制配置</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </dialog>
+  <aside id="selection-dock" class="selection-dock" aria-label="批量测试操作">
+    <div class="selection-dock-inner">
+      <div class="selection-dock-copy">
+        <span id="dock-selection-count" class="selection-dock-count">已选择 0 个模型</span>
+        <span id="dock-prompt-preview" class="selection-dock-note">测试将使用问答测试中的提示词。</span>
+      </div>
+      <button id="dock-prompt-button" type="button">编辑测试提示词</button>
+      <button id="dock-test-button" class="primary" aria-label="开始测试" disabled>开始测试</button>
+      <button id="dock-stop-button" aria-label="停止批量测试" hidden>停止测试</button>
+      <button id="dock-clear-button" aria-label="清空测试选择" disabled>清空选择</button>
+    </div>
+  </aside>
+  <svg id="selection-lasso" aria-hidden="true"><rect hidden></rect></svg>
+  <script src="/assets/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.vscode/cline.json
+.continue/
+opencode-config.json
+vscode-settings.json
+all-configs.json
+*.tmp
+vault.json
