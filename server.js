@@ -306,10 +306,6 @@ function requestSCNet(pathname, method = 'GET', body = undefined, apiKey = undef
     const payload = body === undefined ? null : JSON.stringify(body);
     const headers = { ...SCNET_UPSTREAM_HEADERS };
     if (apiKey) headers.authorization = `Bearer ${apiKey}`;
-    if (anthropic) {
-      headers['anthropic-version'] = anthropicVersion;
-      if (anthropicBeta) headers['anthropic-beta'] = anthropicBeta;
-    }
     if (payload) headers['content-length'] = Buffer.byteLength(payload);
     if (method !== 'GET') headers.accept = 'text/event-stream';
 
@@ -451,6 +447,10 @@ function upstreamSCNet(pathname, method, body, res, {
   const payload = body === undefined ? null : JSON.stringify(body);
   const headers = { ...SCNET_UPSTREAM_HEADERS };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  if (anthropic) {
+    headers['anthropic-version'] = anthropicVersion;
+    if (anthropicBeta) headers['anthropic-beta'] = anthropicBeta;
+  }
   if (payload) headers['content-length'] = Buffer.byteLength(payload);
   if (stream) headers.accept = 'text/event-stream';
   const base = anthropic ? SCNET_ANTHROPIC_BASE : SCNET_OPENAI_BASE;
